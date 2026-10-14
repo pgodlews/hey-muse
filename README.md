@@ -51,8 +51,9 @@ through [Muse Home Link](https://gadgets.muse.ai/home-link).
 
 ## Install
 
-Download `hey-muse.apk` from this repository's **Releases** (or the **Actions** tab, for a build of
-any branch), then:
+There are no releases yet. Download the APK from the **Actions** tab: open the newest successful
+**Build & Release** run on `muse`, download the `hey-muse-…` artifact at the bottom, and unzip it to
+get `hey-muse.apk`. Then:
 
 ```sh
 adb install -r -g hey-muse.apk
