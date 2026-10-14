@@ -13,6 +13,10 @@ Here all of that is gone and only the app is left: hey-muse's Muse client, pairi
 voice, built into an Android app the way [Wormhole Display](https://github.com/pgodlews/wormhole-display)
 is.
 
+![Hey Muse running on a Meta Portal+](docs/screenshot.png)
+
+> **Important:** This app has **not been tested** with live Muse conversations yet, as **Muse is not available in the UK yet**.
+>
 > **Not made by Meta.** This is a hobby project. Meta did not make it and does not endorse it. Muse
 > and Portal are Meta's. Using Muse this way is covered by Meta's
 > [Gadget SDK Terms](https://gadgets.muse.ai/sdk-terms).
@@ -47,6 +51,7 @@ through [Muse Home Link](https://gadgets.muse.ai/home-link).
 - A Muse subscription, the Muse app on your phone, and an SDK token of your own from
   [gadgets.muse.ai](https://gadgets.muse.ai/settings/sdk-tokens) (Account → SDK tokens). It starts
   with `mgst_`. The token is personal: never publish it, and do not share it with another household.
+  *(Note: Muse is not available in the UK yet).*
 - Optional: a key for an OpenAI-style speech endpoint, for a more natural voice.
 
 ## Install
@@ -135,8 +140,11 @@ has the details.
 
 ## What was tested
 
-Honestly: not yet on a Portal. What is known:
+Honestly: **not yet tested end-to-end with a live Muse account, as Muse is not available in the UK yet.**
 
+What is known:
+
+- The app compiles, installs, and launches on a physical Portal+ (`arm64-v8a`), capturing audio via `VOICE_COMMUNICATION` and rendering the UI.
 - The Muse client, pairing protocol, timers and alarms, and the wake word pass their tests
   (`go test ./...` in `core/`); the client and pairing are hey-muse's, which were tested against Muse
   on an Echo Show 5.
