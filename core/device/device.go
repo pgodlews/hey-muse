@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/muse"
+	"github.com/pgodlews/hey-muse-portal/core/muse"
 )
 
 // VolumeSteps is the top of the volume scale Muse is told about. The Host maps it onto the stream's

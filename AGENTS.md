@@ -22,7 +22,7 @@ flowchart LR
 ## Layout
 
 ```
-core/                       Go module github.com/pgodlews/hey-muse/core
+core/                       Go module github.com/pgodlews/hey-muse-portal/core
   heymuse/                  the gomobile API: App, Host, Peripheral, Ears, Speech (Java package `heymuse`)
   muse/, muse/pairing/      hey-muse's port of Meta's Muse Gadget SDK client and BLE setup (Apache-2.0)
   device/                   timers, alarms, volume, stop: what Muse may call ("portal.*" commands)

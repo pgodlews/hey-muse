@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/endpoint"
-	"github.com/pgodlews/hey-muse/core/muse"
-	"github.com/pgodlews/hey-muse/core/speech"
+	"github.com/pgodlews/hey-muse-portal/core/endpoint"
+	"github.com/pgodlews/hey-muse-portal/core/muse"
+	"github.com/pgodlews/hey-muse-portal/core/speech"
 )
 
 // activeTurn is the question that is open.

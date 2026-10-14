@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/muse"
-	"github.com/pgodlews/hey-muse/core/muse/pairing"
+	"github.com/pgodlews/hey-muse-portal/core/muse"
+	"github.com/pgodlews/hey-muse-portal/core/muse/pairing"
 )
 
 // The GATT shape the app's server has to have. The phone writes commands to RX and subscribes to

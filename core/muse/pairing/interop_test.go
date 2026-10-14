@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/muse/pairing"
+	"github.com/pgodlews/hey-muse-portal/core/muse/pairing"
 )
 
 // sdkEnv names the SDK checkout's linux/src directory. The SDK is not part of this repository.
