@@ -4,16 +4,12 @@
 
 ## Tested on
 
-Which device, which generation, and what you saw. "Not tested on hardware" is a fine answer — say so
-rather than leaving it to be guessed.
+Which Portal (Portal+ Gen 1 or 2, Mini, Go, TV), and what you saw. "Not tested on hardware" is a fine
+answer — say so rather than leaving it to be guessed.
 
 ## Before you open it
 
-- [ ] All three device builds still pass: `go test ./...`, `go test -tags dot ./...`,
-      `go test -tags spot ./...` (from `echod/`).
-- [ ] Nothing personal in the diff: no serial numbers, MAC addresses, local IP addresses, Wi-Fi
-      names, or people's and room names. This repository is public and the devices sit in people's
-      houses, so test data is made up.
-- [ ] No AI attribution in the commits: no `Co-Authored-By:` trailer naming an assistant, and no
-      "generated with" line. Use whatever tools you like — the commit goes out under your name.
+- [ ] `go test ./...` passes in `core/`, and the app builds (`scripts/build.sh`).
+- [ ] Nothing personal in the diff: no SDK tokens, speech keys, MAC addresses, local IP addresses,
+      Wi-Fi names, or people's names. This repository is public.
 - [ ] US spelling in prose, comments and identifiers: color, behavior, center, gray.

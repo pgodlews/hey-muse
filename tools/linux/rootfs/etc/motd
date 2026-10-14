@@ -1,2 +1,0 @@
-TECHO5 — Echo Show 5 on Linux. Root is read-only; state is on /data,
-the slot store on /store (slotctl status). Daemon log: /data/techo5-linux/techo5.log

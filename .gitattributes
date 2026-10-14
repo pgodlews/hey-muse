@@ -1,27 +1,11 @@
-# Shell scripts and everything that lands on the device must stay LF whatever
-# the checkout platform does; the rest follows the platform.
 * text=auto
 *.sh text eol=lf
 *.py text eol=lf
-tools/linux/init text eol=lf
-tools/linux/slotctl text eol=lf
-tools/linux/readmisc.sh text eol=lf
-tools/linux/rootfs/** text eol=lf
-tools/linux/*.txt text eol=lf
-tools/*.sh text eol=lf
-# Kernel patches are fed to git apply inside WSL against an LF source tree, which
-# refuses a patch whose own lines end in CRLF: "patch does not apply", every hunk,
-# with nothing to say why. The blobs here are LF; without this rule a Windows
-# checkout hands out CRLF copies and build-kernel.sh PATCHES= cannot work at all.
-*.patch text eol=lf
-*.ps1 text eol=crlf
+gradlew text eol=lf
+*.bat text eol=crlf
 *.png binary
+*.jar binary
 *.tflite binary
-
-# The icon names are read at run time and must not grow a CR on a Windows checkout; the font is binary.
-echod/internal/lib/mdi/names.txt text eol=lf
-*.ttf binary
-
-# Recorded sounds embedded in the daemon: raw audio, which a line-ending conversion would corrupt.
+*.bin binary
+# Raw audio, which a line-ending conversion would corrupt.
 *.pcm binary
-tools/boot-logo/*.bin binary

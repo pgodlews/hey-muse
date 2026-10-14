@@ -1,8 +1,7 @@
 # The Muse avatar
 
-When Muse is what answers (`brain.mode` is `muse`), an Echo Show can draw Muse's character in
-the middle of the screen for a turn: listening, thinking and talking as the turn does, with no words
-beside it. The character is Meta's.
+Hey Muse can draw Muse's character in the middle of the Portal's screen: listening, thinking and
+talking as the turn does. Without it, the app shows a glowing orb instead. The character is Meta's.
 Meta's SDK says its Apache license does not cover it, so neither the character nor the code that
 draws it is in this repository or in any image built from it. `make_sprites.py` makes the pictures
 from your own copy of the SDK, for your own device.
@@ -28,21 +27,19 @@ them to `build/muse-avatar/`, which git ignores:
 | `talking.png` | shown while the answer is spoken (the SDK calls it `speaking`) |
 
 Each sheet is the animation's frames in rows of ten, 64 pixels square, the size the renderer draws
-at. The screen scales a frame up by a whole number as it draws it: five on a Show 5, for 320 pixels,
-and six on a Show 8. Frames are every second one of the renderer's 25 a second, so 12.5 a second.
+at. The Portal scales a frame up by a whole number as it draws it, as large as fits in the middle of
+the screen. Frames are every second one of the renderer's 25 a second, so 12.5 a second.
 
-## Put them on the device
+## Put them on the Portal
 
 ```sh
-scp -r build/muse-avatar root@<address>:/data/misc/techo5/
-ssh root@<address> killall techo5
+adb push build/muse-avatar /sdcard/Android/data/io.github.pgodlews.heymuse/files/
 ```
 
-The daemon reads the set once as it starts and logs `Muse avatar loaded`. A set it cannot read is
-logged as `no Muse avatar installed` with the reason, and turns are drawn as they are without one.
-To take the character off again, delete `/data/misc/techo5/muse-avatar` and restart the daemon.
-
-The Echo Spot's round screen and the Echo Dot do not draw the character.
+The app reads the set when its screen opens, and again when you leave its settings, and logs
+`Muse avatar loaded` (or `no Muse avatar:` with the reason) under the tag `HeyMuseAvatar`. To take the
+character off again, delete that `muse-avatar` folder. The set is drawn in whole pixels, as large as
+fits.
 
 ## From videos, for a smoother character
 
@@ -57,7 +54,7 @@ uv run --with numpy --with pillow --with opencv-python-headless tools/muse-avata
 
 It needs `ffmpeg`. It takes the white out from the frame's edges inward, keeps the character's edge
 soft, folds the end of each clip over its start so the loop has no jump, and writes the same kind of
-folder, to copy to the device the same way. The set is larger: at the default 432 pixels high and 12
+folder, to copy to the Portal the same way. The set is larger: at the default 432 pixels high and 12
 frames a second, four six-second clips are about 14 MB on disk and 50 MB of the device's memory.
 
 What makes a good video: the same framing in all four, a background that is one flat color, nothing

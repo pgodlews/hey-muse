@@ -1,9 +1,0 @@
-#!/bin/sh
-# Root shell on the USB serial port (CDC ACM, a COM port on the host), under
-# busybox init (inittab respawn). Waits for the device node, which appears once
-# boot.sh has bound the gadget. init already made this process a session
-# leader, so opening the port makes it the controlling terminal; no setsid
-# here — busybox's setsid would fork, the respawn entry would exit at once and
-# init would start another shell every cycle, piling them up.
-while [ ! -c /dev/ttyGS0 ]; do sleep 3; done
-exec /bin/sh -l < /dev/ttyGS0 > /dev/ttyGS0 2>&1
