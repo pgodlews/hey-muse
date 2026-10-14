@@ -93,7 +93,8 @@ leave a `muse.json` anywhere else: its tokens are the Portal's whole identity wi
 
 - `scripts/build.sh` builds a debug APK into `dist/`. Gradle's `buildCore` task runs
   `scripts/build-core.sh`, which installs the gomobile version `core/go.mod` names into `.tools/`.
-- CI (`.github/workflows/build.yml`) tests the core and builds an APK on every push. Pushes to the default branch
-  publish a signed rolling `latest` pre-release; `vX.Y.Z` tags publish releases. Signing needs the
-  secrets `HEYMUSE_KEYSTORE_BASE64`, `HEYMUSE_KEYSTORE_PASSWORD`, `HEYMUSE_KEY_ALIAS` and
-  `HEYMUSE_KEY_PASSWORD`; without them, branch builds are debug-signed and publishing refuses.
+- CI (`.github/workflows/build.yml`) tests the core and uploads an APK artifact on every push and
+  pull request. Releases are off until the signing secrets exist: `HEYMUSE_KEYSTORE_BASE64`,
+  `HEYMUSE_KEYSTORE_PASSWORD`, `HEYMUSE_KEY_ALIAS` and `HEYMUSE_KEY_PASSWORD`. With them, pushes to the
+  default branch publish a signed rolling `latest` pre-release and `vX.Y.Z` tags publish releases; a
+  tag pushed without them fails.
