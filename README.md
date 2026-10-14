@@ -1,109 +1,191 @@
-# Hey Muse
+# Hey Muse for Portal
 
-An Amazon Echo Show 5 that answers as [Muse](https://gadgets.muse.ai), Meta's AI agent. Say "Hey
-Muse", ask something, and your own Muse answers out loud, with its character on the screen. No
-Alexa, no Amazon cloud, and no Home Assistant needed.
+A Meta Portal that answers as [Muse](https://gadgets.muse.ai), Meta's AI agent. Say "Hey Muse",
+ask something, and your own Muse answers out loud on the Portal's speakers, with an orb (or Muse's
+character, if you add it) on the screen.
 
-This is a fork of [TECHO5](https://github.com/HuskerMinion/techo5) by HuskerMinion, which replaces
-the Echo's Android with a small Linux and one Go daemon. TECHO5 does the hard part: the kernel, the
-microphones, echo cancellation, the wake word, the screen. This fork adds Muse as one more choice for
-who answers. Everything else about the device is TECHO5's, and its own README is kept here as
-[README.upstream.md](README.upstream.md).
+It is an ordinary app that runs alongside Portal OS: **no root and no firmware changes**. The Portal
+pairs with the Muse app like any Muse gadget, over its own Bluetooth.
 
-> **Not made by Meta or Amazon.** This is a hobby project. Neither company made it or endorses it.
-> Using Muse this way is covered by Meta's [Gadget SDK Terms](https://gadgets.muse.ai/sdk-terms).
+This is a fork of [hey-muse](https://github.com/wobsoriano/hey-muse), which made an Echo Show 5 answer
+as Muse by replacing its whole operating system ([TECHO5](https://github.com/HuskerMinion/techo5)).
+Here all of that is gone and only the app is left: hey-muse's Muse client, pairing, wake word and
+voice, built into an Android app the way [Wormhole Display](https://github.com/pgodlews/wormhole-display)
+is.
 
-## What this fork adds
+> **Not made by Meta.** This is a hobby project. Meta did not make it and does not endorse it. Muse
+> and Portal are Meta's. Using Muse this way is covered by Meta's
+> [Gadget SDK Terms](https://gadgets.muse.ai/sdk-terms).
 
-- **Muse as the voice assistant.** A third choice beside Home Assistant and TECHO5's direct
-  pipeline, picked on the setup page. Home Assistant keeps working for anyone who uses it.
-- **Pairing with the Muse app over the Echo's own Bluetooth.** No other device is involved. The Echo
-  then shows up in the Muse app's device list like any Muse gadget.
-- **A voice with no server at home.** Answers are spoken through an OpenAI-style speech endpoint, or
-  by a built-in voice (SVOX Pico) that needs no key and no internet.
-- **A "Hey Muse" wake word,** beside TECHO5's own, chosen on the device.
-- **Things Muse can do on the device.** Set timers and alarms, change the volume, play the radio
-  and show a few screen pages, asked aloud or from the Muse app.
-- **The Muse character on screen** during a turn, if you generate it from your own copy of Meta's
-  SDK. The character is Meta's and is not in this repository.
-- **A Usage screen.** A clock style that shows meters sent from your computer, made for a Claude
-  Code plan's usage. See [docs/usage-screen.md](docs/usage-screen.md).
+## What it does
 
-Smart home control is not part of this. The Echo is the voice. Reaching your lights and speakers is
-Muse's own business, for example through [Muse Home Link](https://gadgets.muse.ai/home-link).
+- **"Hey Muse", or a tap.** The wake word is heard on the Portal itself; a tap anywhere works too.
+- **Muse answers out loud,** in a built-in voice (SVOX Pico) that needs no key and no internet of
+  its own, or in a cloud voice from an OpenAI-style speech endpoint, with the built-in voice as a
+  fallback.
+- **A follow-up without the wake word** when Muse's answer is a question.
+- **Things Muse can do on the Portal:** set timers and alarms, list and cancel them, change the
+  volume, and stop a ring. Muse decides when to call them; nothing else on the Portal is reachable.
+- **Pairs over the Portal's own Bluetooth** with the Muse app. The Portal then shows up in the Muse
+  app's device list.
+- **Keeps listening in the background,** starts when the Portal starts, and comes to the front when
+  it hears "Hey Muse".
+- **Muse's character on the screen,** if you make it from your own copy of Meta's SDK. The character
+  is Meta's and is not in this app.
+
+Smart home control is not part of this: reaching your lights is Muse's own business, for example
+through [Muse Home Link](https://gadgets.muse.ai/home-link).
 
 ## What you need
 
-- An Echo Show 5 that TECHO5 supports, with its bootloader unlocked.
-  [TECHO5's getting started guide](docs/getting-started.md) covers which models and how.
-- A Muse subscription, the Muse app, and an SDK token of your own from
-  [gadgets.muse.ai](https://gadgets.muse.ai/settings/sdk-tokens). The token is personal. Never
-  publish it.
+- A Meta Portal: Portal+ (Gen 1 or 2), Portal, Portal Mini or Portal Go. All of them are 64-bit ARM
+  on Android 9 or 10. The Portal TV may work but has not been thought about.
+- ADB access to the Portal. Follow Meta's
+  [Set up your device](https://developers.meta.com/horizon/documentation/android-apps/portal-setup/)
+  to turn it on, and install Google's
+  [platform tools](https://developer.android.com/tools/releases/platform-tools) for `adb`.
+- A Muse subscription, the Muse app on your phone, and an SDK token of your own from
+  [gadgets.muse.ai](https://gadgets.muse.ai/settings/sdk-tokens) (Account → SDK tokens). It starts
+  with `mgst_`. The token is personal: never publish it, and do not share it with another household.
 - Optional: a key for an OpenAI-style speech endpoint, for a more natural voice.
 
 ## Install
 
-On an Echo Show 5 2nd gen with its bootloader unlocked and LineageOS 18.1 on it, which is where
-[TECHO5's getting started guide](docs/getting-started.md) leaves you:
+Download `hey-muse.apk` from this repository's **Releases** (or the **Actions** tab, for a build of
+any branch), then:
 
 ```sh
-git clone https://github.com/wobsoriano/hey-muse
-cd hey-muse
-python3 tools/install-show.py
+adb install -r -g hey-muse.apk
 ```
 
-It needs Python 3, `adb` and `fastboot`, on Windows, Linux or macOS. It downloads the latest release
-of this fork, checks it against the fork's signing key, and asks once before it erases LineageOS.
-[docs/install.md](docs/install.md) is TECHO5's guide to the same installer.
+`-g` grants the microphone up front; without it the app asks on first launch.
 
-A device already running upstream TECHO5 does not move to this fork by itself, since it trusts
-upstream's key. [docs/releasing-the-fork.md](docs/releasing-the-fork.md) says how to move one over.
+Hand over your SDK token with adb, which beats typing it on the Portal's keyboard:
 
-Then follow [docs/muse.md](docs/muse.md): choose Muse on the setup page, paste your token, pair in
-the Muse app, and pick **Hey Muse** as the wake word on the device (Settings, Sound, Wake word). A
-new device listens for "Alexa" until you do. A device on this fork finds later releases of it by itself.
+```sh
+adb shell am start -n io.github.pgodlews.heymuse/.MainActivity --es sdk_token mgst_your_token_here
+```
 
-The release carries a boot image for the Show 5 2nd gen only, the one board this was tried on.
+The same works for `speech_key`, `voice` (`builtin`, or a cloud voice like `coral`), `speech_style`,
+`speech_base`, `speech_model` and `display_name`. All of them can also be typed under Settings
+(the gear at the top right).
+
+Open **Hey Muse** from the Portal's apps list, or with
+`adb shell am start -n io.github.pgodlews.heymuse/.MainActivity`.
+
+### Free the microphone
+
+The Portal's own assistant has the microphone first. While "Hey Portal" or Alexa is talking, every
+other app hears silence, and the app says so ("The microphone hears nothing"). For Hey Muse to hear
+you reliably, turn off **"Hey Portal"** and unlink Alexa in the Portal's settings. The privacy
+switch silences the microphone the same way.
+
+## Pair with the Muse app
+
+1. In Hey Muse, open **Settings** and make sure the **Muse SDK token** is saved.
+2. Press **Pair with the Muse app**. The Portal goes on Bluetooth for 10 minutes under a name like
+   `MuseGadgetA1B2C3`, shown in large letters.
+3. On your phone, open the Muse app, go to **Settings → Devices** and turn on **Developer mode**.
+4. Tap **Add Device** (the **+** at the top right) and pick the `MuseGadget` name.
+5. Muse warns that this is a community device. Continue if the Portal is yours.
+6. When the app asks for Wi-Fi, pick the one network it shows. The Portal is already online, so no
+   password is asked.
+
+The status at the top turns to **Muse · your name**. Say "Hey Muse" and ask something. The pairing
+survives restarts, and the Portal reconnects by itself.
+
+Pairing keeps setup secrets from someone who is only listening. It does not prove who the phone is,
+so it cannot stop someone in the middle. Pair on a network you trust.
+
+**Unpair** forgets the tokens but keeps the Portal's identity, so pairing again brings it back under
+the same name. Muse is not told: also remove the device in the Muse app under Settings → Devices.
 
 ## What your voice does
 
-- The wake word is detected on the device. Nothing is sent while it waits.
-- After the wake word, what you say (60 seconds at most) goes to Muse as a recording. Muse keeps it
-  on the message in your Muse account and transcribes it there. Anyone who speaks to the device is
-  recorded into your account the same way.
-- With a cloud voice, the text of each answer goes to the speech provider. With the built-in voice,
-  nothing else leaves the device.
+- The wake word is detected on the Portal. Nothing is sent while it waits.
+- After the wake word (or a tap), what you say, 60 seconds at most, goes to Muse as a recording.
+  Muse keeps it on the message in your Muse account and transcribes it there. Anyone who speaks to
+  the Portal is recorded into your account the same way.
+- With a cloud voice, the text of each answer goes to the speech provider (OpenAI unless you set
+  another endpoint). With the built-in voice, nothing else leaves the Portal.
+- The pairing tokens, the SDK token and the speech key are kept in the app's private storage.
 
-[docs/muse.md](docs/muse.md) has the details.
+## Settings worth knowing
+
+- **Sensitivity** of the wake word: the middle is what the model was tuned for; higher wakes more
+  readily, and falsely more often.
+- **Portal voice processing** uses the Portal's own beamforming, noise suppression and echo
+  cancellation for the microphone. Turn it off if the wake word is often missed.
+- **Open on the wake word** brings the app to the front from the background. Android needs
+  **Display over other apps** for that; the setting has an **Allow** button.
+
+## The Muse character
+
+Without it the app draws a glowing orb that listens, thinks and talks. To have Muse's own character
+instead, make its sprite sheets from your own checkout of Meta's SDK and copy them over:
+
+```sh
+uv run --with pillow tools/muse-avatar/make_sprites.py --sdk ~/src/muse-gadget-sdk
+adb push build/muse-avatar /sdcard/Android/data/io.github.pgodlews.heymuse/files/
+```
+
+The character is Meta's: do not publish the pictures. [tools/muse-avatar](tools/muse-avatar/README.md)
+has the details.
 
 ## What was tested
 
-On one Echo Show 5 2nd gen (cronos), in October 2026:
+Honestly: not yet on a Portal. What is known:
 
-- Installing the image and booting from it, and reconnecting to Muse after a reboot.
-- Pairing from the Muse app on an iPhone.
-- Wake word, question, spoken answer, with the cloud voice and with the built-in voice.
-- The character on screen.
-- The "Hey Muse" wake word, with one voice.
-- Muse changing the volume and setting an alarm, asked aloud and from the Muse app.
+- The Muse client, pairing protocol, timers and alarms, and the wake word pass their tests
+  (`go test ./...` in `core/`); the client and pairing are hey-muse's, which were tested against Muse
+  on an Echo Show 5.
+- The wake word model wakes on SVOX Pico saying "Hey Muse" and not on other speech.
+- The Pico voice bridge was run from Java against the real engine.
+- The Portal's microphone, Bluetooth peripheral mode and audio behave as
+  [the notes in AGENTS.md](AGENTS.md#the-portal) describe, from another Portal app's experience.
 
-Not tested: the timer, radio and screen commands (only the volume and an alarm were tried), pairing
-from Android, the Show 5 1st gen, the Show 8, the Spot and the Dot, pairing while
-Bluetooth earbuds are connected, the setup page's pairing button (pairing was done from the command
-line), and this fork with a Home Assistant server attached.
+If you try it, an issue that says which Portal and what happened helps the next person.
 
-An answer took 7 to 11 seconds from the end of the question, most of it Muse thinking.
+## Troubleshooting
+
+**"Microphone hears nothing".** The privacy switch is on, or Portal's own assistant has the
+microphone. See [Free the microphone](#free-the-microphone).
+
+**Pairing does not start, "Bluetooth refused to advertise".** Turn Bluetooth on in the Portal's
+settings (or `adb shell cmd bluetooth enable`) and try again. If the Portal's Bluetooth cannot
+advertise at all, pair from a computer instead: see [AGENTS.md](AGENTS.md#pairing-without-the-portals-bluetooth).
+
+**"Paired as ..., but not connected".** The app keeps trying; the reason follows the colon, and
+`adb logcat -s HeyMuseCore` has the rest.
+
+**The pairing was revoked.** When Muse refuses the Portal's tokens outright (for example after you
+remove it in the Muse app), the app forgets them and goes back to **Not paired**. Pair again.
+
+## Building
+
+Requirements: JDK 17, Go 1.26, the Android SDK (`ANDROID_HOME`) with NDK 27.3.13750724 and CMake
+3.22.1.
+
+```sh
+./scripts/build.sh            # dist/hey-muse.apk
+adb install -r -g dist/hey-muse.apk
+```
+
+The Gradle build compiles the Go core into `app/libs/heymuse-core.aar` with gomobile
+(`scripts/build-core.sh`, which installs gomobile itself). [AGENTS.md](AGENTS.md) explains the layout.
 
 ## Credits
 
-- [TECHO5](https://github.com/HuskerMinion/techo5) by HuskerMinion, which this is a fork of, and
-  [EchoLocal](echod/README.upstream.md) by Yuri Gelfand, which TECHO5 is built on. Both MIT.
-- Meta's [Muse Gadget SDK](https://github.com/facebookincubator/muse-gadget-sdk), Apache 2.0. The
-  Muse client and the pairing code here are ports of it.
-- SVOX Pico, Apache 2.0, for the built-in voice.
+- [hey-muse](https://github.com/wobsoriano/hey-muse), whose Muse client, pairing, wake word and voice
+  this is, built on [TECHO5](https://github.com/HuskerMinion/techo5) by HuskerMinion and EchoLocal by
+  Yuri Gelfand. MIT.
+- Meta's [Muse Gadget SDK](https://github.com/facebookincubator/muse-gadget-sdk), Apache 2.0. The Muse
+  client and the pairing code are ports of it.
+- [zserge/microwakeword](https://github.com/zserge/microwakeword), MIT, which runs the wake word.
+- SVOX Pico, Apache 2.0, for the built-in voice. Home Assistant Voice sounds, CC BY 4.0, for the chime.
 
 [NOTICE](NOTICE) lists everything and its license.
 
 ## License
 
-MIT, as TECHO5 is. See [LICENSE](LICENSE), [echod/LICENSE](echod/LICENSE) and [NOTICE](NOTICE).
+MIT, as hey-muse and TECHO5 are. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Make a Muse avatar sprite set for a TECHO5 Show from short videos of the character on a plain white
+"""Make a Muse avatar sprite set for the Hey Muse app from short videos of the character on a plain white
 background: one video each for idle, listening, thinking and talking.
 
     uv run --with numpy --with pillow --with opencv-python-headless tools/muse-avatar/make_video_sprites.py \\
         --idle idle.mp4 --listening listening.mp4 --thinking thinking.mp4 --talking talking.mp4
 
-Needs ffmpeg. The sheets go to build/muse-avatar (--out), in the form echod's lib/avatar reads: one
+Needs ffmpeg. The sheets go to build/muse-avatar (--out), in the form the app's Avatar.kt reads: one
 paletted PNG per animation with the white taken out, soft at the character's edge, and manifest.json.
-Copy the folder to /data/misc/techo5/muse-avatar on the device. The videos, like the character, are
+Copy the folder to the Portal with adb push (tools/muse-avatar/README.md). The videos, like the character, are
 not part of this repository.
 
 The white is found from the frame's edges inward, so white inside the character (the shine in an eye)

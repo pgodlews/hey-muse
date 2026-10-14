@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Make the Muse avatar's sprite sheets for the Show's turn screen.
+"""Make the Muse avatar's sprite sheets for the Hey Muse app on a Portal.
 
     uv run --with pillow tools/muse-avatar/make_sprites.py --sdk ~/src/muse-gadget-sdk
 
 Meta's Muse gadget SDK draws its default character with a C renderer. This
 builds that renderer on this computer with the SDK's own animation driver,
 plays the animations the screen needs, and packs the frames into one PNG sheet
-per animation plus the manifest echod reads (echod/internal/lib/avatar).
+per animation plus the manifest the app reads (app/.../Avatar.kt).
 
 The character is Meta's and the SDK's Apache license does not cover it, so
 nothing of it is kept in this repository: the renderer is read from your own

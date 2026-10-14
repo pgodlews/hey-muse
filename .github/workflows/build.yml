@@ -1,126 +1,139 @@
-name: Build release binaries
+name: Build & Release
 
-# Builds echod-arm, echod-arm-dot and echod-arm-spot, and the TECHO5 Deck agent for Windows, macOS
-# and Linux, on GitHub's runners from a tagged commit, and attests that the published binaries were
-# built from that exact source — so anyone can verify a
-# release matches the repo without trusting the maintainer's machine, for all three devices' release
-# scripts (this repo's release.ps1, techo5-dot's release-dot.ps1, techo5-spot's release-spot.ps1 /
-# deploy-rootfs.sh). Signing stays local in each: the release key never touches CI. See
-# docs/building.md, "Releases (maintainer)".
-#
-# Each device keeps its own version numbers, and Home Assistant compares a device's running version
-# with its release's, so the tag says which device a build is for: vX.Y.Z (the Show), dot-vX.Y.Z,
-# spot-vX.Y.Z. Every binary is stamped with vX.Y.Z; each release script takes only its own device's
-# binary, and refuses one whose attestation isn't from that release's tag. A run started by hand is
-# stamped v0.0.0-dev, for testing only: no release script accepts it.
-#
-# Every action is pinned to a full commit SHA, with the release it belongs to in the comment beside
-# it. This workflow is the root of the provenance story — it builds and attests the binaries every
-# device installs — and a major tag is a moving pointer its own author can repoint, so a tag is not
-# something to trust with that. Moving one forward is then a deliberate edit: read what changed in
-# the release, and change the SHA and the comment together.
+# Every push and pull request: Go core tests + an APK artifact.
+# Push to the default branch: signed release APK, republished as the rolling "latest" pre-release.
+# Tag vX.Y.Z:    signed release APK published as a GitHub Release.
 
 on:
   push:
-    tags:
-      - 'v*.*.*'
-      - 'dot-v*.*.*'
-      - 'spot-v*.*.*'
+    branches: ['**']
+    tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  id-token: write
-  attestations: write
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !startsWith(github.ref, 'refs/tags/') && github.ref != format('refs/heads/{0}', github.event.repository.default_branch) }}
 
 jobs:
   build:
+    name: Build APK
     runs-on: ubuntu-latest
+    env:
+      NDK_VERSION: 27.3.13750724
+      KEYSTORE_BASE64: ${{ secrets.HEYMUSE_KEYSTORE_BASE64 }}
+      # Job-wide: once HEYMUSE_KEYSTORE_PATH is set, every Gradle invocation needs the full signing config.
+      HEYMUSE_KEYSTORE_PASSWORD: ${{ secrets.HEYMUSE_KEYSTORE_PASSWORD }}
+      HEYMUSE_KEY_ALIAS: ${{ secrets.HEYMUSE_KEY_ALIAS }}
+      HEYMUSE_KEY_PASSWORD: ${{ secrets.HEYMUSE_KEY_PASSWORD }}
+      PUBLISH: ${{ github.event_name == 'push' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v')) }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-
-      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+      - name: Check out (full history and tags for versioning)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          go-version: '1.26'
-          cache-dependency-path: echod/go.sum
+          fetch-depth: 0
 
-      - name: Version info
-        id: ver
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: core/go.sum
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Install Android platform, NDK and CMake
         run: |
-          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
-            name="${GITHUB_REF_NAME}"
-            version="${name#dot-}"; version="${version#spot-}"
-          else
-            name="v0.0.0-dev"; version="v0.0.0-dev"
+          sdkmanager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdkmanager" --licenses > /dev/null || true
+          "$sdkmanager" --install "platforms;android-35" "ndk;$NDK_VERSION" "cmake;3.22.1" > /dev/null
+
+      - name: Compute version
+        run: |
+          scripts/version.sh | tee -a "$GITHUB_ENV"
+
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must look like v1.2.3 (got $GITHUB_REF_NAME)"
+            exit 1
           fi
-          echo "name=$name" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "commit=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
-          echo "date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          if [ "v$HEYMUSE_VERSION_NAME" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Computed version $HEYMUSE_VERSION_NAME does not match tag $GITHUB_REF_NAME"
+            exit 1
+          fi
 
-      # Each device's build is tested with its own tags: some packages differ per device.
-      - name: Test
-        working-directory: echod
+      - name: Require signing secrets for published builds
+        if: env.PUBLISH == 'true'
         run: |
-          go test ./...
-          go test -tags dot ./...
-          go test -tags spot ./...
-          # The deck agent's Windows and macOS code doesn't build here otherwise.
-          GOOS=windows go vet ./cmd/techo5-deck
-          GOOS=darwin go vet ./cmd/techo5-deck
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ] || missing="$missing HEYMUSE_KEYSTORE_BASE64"
+          [ -n "$HEYMUSE_KEYSTORE_PASSWORD" ] || missing="$missing HEYMUSE_KEYSTORE_PASSWORD"
+          [ -n "$HEYMUSE_KEY_ALIAS" ] || missing="$missing HEYMUSE_KEY_ALIAS"
+          [ -n "$HEYMUSE_KEY_PASSWORD" ] || missing="$missing HEYMUSE_KEY_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing; refusing to publish an unsigned build."
+            exit 1
+          fi
 
-      - name: Build
-        working-directory: echod
-        env:
-          GOOS: linux
-          GOARCH: arm
-          GOARM: "7"
-          CGO_ENABLED: "0"
+      - name: Decode release keystore
+        if: env.KEYSTORE_BASE64 != ''
         run: |
-          pkg=github.com/HuskerMinion/techo5/echod/internal/layout
-          ldflags="-s -w -X '$pkg.Version=${{ steps.ver.outputs.version }}' -X '$pkg.GitCommit=${{ steps.ver.outputs.commit }}' -X '$pkg.BuildDate=${{ steps.ver.outputs.date }}'"
-          go build -trimpath -ldflags "$ldflags" -o ../bin/echod-arm ./cmd/echod
-          go build -tags dot -trimpath -ldflags "$ldflags" -o ../bin/echod-arm-dot ./cmd/echod
-          go build -tags spot -trimpath -ldflags "$ldflags" -o ../bin/echod-arm-spot ./cmd/echod
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "HEYMUSE_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
-      # The TECHO5 Deck agent, for the computers a Show's deck presses keys on. Named without the
-      # version, so a link to the latest release's file never changes.
-      - name: Build the deck agent
-        working-directory: echod
-        env:
-          CGO_ENABLED: "0"
+      - name: Go core tests
+        working-directory: core
         run: |
-          ldflags="-s -w -X 'main.version=${{ steps.ver.outputs.version }}'"
-          for t in windows/amd64/windows-amd64.exe windows/arm64/windows-arm64.exe \
-                   darwin/amd64/macos-amd64 darwin/arm64/macos-arm64 \
-                   linux/amd64/linux-amd64 linux/arm64/linux-arm64; do
-            IFS=/ read -r os arch name <<< "$t"
-            GOOS=$os GOARCH=$arch go build -trimpath -ldflags "$ldflags" -o "../bin/techo5-deck-$name" ./cmd/techo5-deck
-          done
+          go vet ./...
+          go test -race ./...
 
-      - name: Checksums
-        working-directory: bin
-        run: sha256sum echod-arm echod-arm-dot echod-arm-spot techo5-deck-* > SHA256SUMS
+      - name: Build APK
+        run: |
+          mkdir -p dist
+          if [ -n "${HEYMUSE_KEYSTORE_PATH:-}" ]; then
+            ./gradlew --no-daemon :app:assembleRelease
+            cp app/build/outputs/apk/release/app-release.apk dist/hey-muse.apk
+          else
+            ./gradlew --no-daemon :app:assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk dist/hey-muse.apk
+          fi
+          (cd dist && sha256sum hey-muse.apk > hey-muse.apk.sha256)
+          cat dist/hey-muse.apk.sha256
 
-      # Cryptographically ties these files to this exact workflow run, source commit and tag (Sigstore,
-      # keyless). Check by hand with:
-      #   gh attestation verify bin/echod-arm --repo wobsoriano/hey-muse --source-ref refs/tags/<tag>
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          subject-path: |
-            bin/echod-arm
-            bin/echod-arm-dot
-            bin/echod-arm-spot
-            bin/techo5-deck-*
+          name: hey-muse-${{ env.HEYMUSE_VERSION_NAME }}
+          path: dist/hey-muse.apk*
 
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: techo5-${{ steps.ver.outputs.name }}
-          path: |
-            bin/echod-arm
-            bin/echod-arm-dot
-            bin/echod-arm-spot
-            bin/techo5-deck-*
-            bin/SHA256SUMS
-          if-no-files-found: error
+      - name: Publish tagged release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/hey-muse.apk dist/hey-muse.apk.sha256 \
+            --verify-tag --generate-notes \
+            --title "Hey Muse $GITHUB_REF_NAME"
+
+      - name: Publish rolling latest pre-release
+        if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" > /dev/null 2>&1 || true
+          gh release create latest dist/hey-muse.apk dist/hey-muse.apk.sha256 \
+            --prerelease --target "$GITHUB_SHA" \
+            --title "Hey Muse (latest ${{ github.event.repository.default_branch }} build)" \
+            --notes "Automatic build of \`${{ github.event.repository.default_branch }}\` at ${GITHUB_SHA::7} (version $HEYMUSE_VERSION_NAME). For a stable build, use the newest vX.Y.Z release."
