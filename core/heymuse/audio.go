@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"math"
 
-	"github.com/pgodlews/hey-muse/core/endpoint"
-	"github.com/pgodlews/hey-muse/core/wake"
+	"github.com/pgodlews/hey-muse-portal/core/endpoint"
+	"github.com/pgodlews/hey-muse-portal/core/wake"
 )
 
 // Rate is the microphone rate everything here takes: 16 kHz, 16-bit little-endian, mono.

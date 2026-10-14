@@ -1,4 +1,4 @@
-module github.com/pgodlews/hey-muse/core
+module github.com/pgodlews/hey-muse-portal/core
 
 go 1.26.0
 

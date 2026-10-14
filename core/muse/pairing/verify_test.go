@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/pgodlews/hey-muse/core/muse/pairing"
+	"github.com/pgodlews/hey-muse-portal/core/muse/pairing"
 )
 
 func TestTokenCheck(t *testing.T) {

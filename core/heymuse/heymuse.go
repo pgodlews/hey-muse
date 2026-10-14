@@ -22,9 +22,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/device"
-	"github.com/pgodlews/hey-muse/core/muse"
-	"github.com/pgodlews/hey-muse/core/muse/pairing"
+	"github.com/pgodlews/hey-muse-portal/core/device"
+	"github.com/pgodlews/hey-muse-portal/core/muse"
+	"github.com/pgodlews/hey-muse-portal/core/muse/pairing"
 )
 
 // Host is the app, as the core sees it.

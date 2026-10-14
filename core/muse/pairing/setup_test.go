@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pgodlews/hey-muse/core/muse/pairing"
+	"github.com/pgodlews/hey-muse-portal/core/muse/pairing"
 )
 
 const wait = 3 * time.Second

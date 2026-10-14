@@ -5,7 +5,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pgodlews/hey-muse/core/speech"
+	"github.com/pgodlews/hey-muse-portal/core/speech"
 )
 
 // CloudRate is the rate a cloud voice's audio arrives at: 24 kHz, 16-bit little-endian, mono.
