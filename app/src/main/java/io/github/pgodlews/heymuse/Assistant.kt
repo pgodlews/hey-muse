@@ -2,6 +2,7 @@ package io.github.pgodlews.heymuse
 
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings as AndroidSettings
@@ -137,6 +138,7 @@ object Assistant {
         if (started) return
         started = true
         context = ctx.applicationContext
+        AudioFocus.init(context)
         settings = Settings(context)
         voice = Voice(context, settings)
         ringer = Ringer(context).also { r -> r.onEnded = { main.post { _state.update { it.copy(ringing = null) } } } }
@@ -223,6 +225,7 @@ object Assistant {
             return
         }
         voice?.stop()
+        AudioFocus.request()
         Sound.play(context, R.raw.wake_chime)
         newTurn()
         phase = Phase.LISTENING
@@ -252,12 +255,16 @@ object Assistant {
     private fun toIdle() {
         phase = Phase.IDLE
         resetWake.set(true)
+        if (ringer?.ringing != true) {
+            AudioFocus.abandon()
+        }
         _state.update { it.copy(phase = Phase.IDLE, level = 0f) }
     }
 
     /** Says why something cannot be done, and shows it. */
     private fun problem(text: String) {
         phase = Phase.SPEAKING
+        AudioFocus.request()
         _state.update { it.copy(phase = Phase.SPEAKING, answer = text, answerIsProblem = true, heard = "") }
         say(text, again = false)
     }
@@ -373,7 +380,12 @@ object Assistant {
     }
 
     private fun bringToFront() {
-        if (visible || !settings.openOnWake || !AndroidSettings.canDrawOverlays(context)) return
+        if (!settings.openOnWake) return
+        val canStart = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || AndroidSettings.canDrawOverlays(context)
+        if (!canStart) {
+            Log.w(TAG, "cannot bring to front: missing overlay permission")
+            return
+        }
         runCatching {
             context.startActivity(Intent(context, MainActivity::class.java).addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
@@ -383,6 +395,7 @@ object Assistant {
 
     fun stopRinging() {
         ringer?.stop()
+        if (phase == Phase.IDLE) AudioFocus.abandon()
         _state.update { it.copy(ringing = null) }
     }
 
