@@ -32,8 +32,9 @@ is.
   volume, and stop a ring. Muse decides when to call them; nothing else on the Portal is reachable.
 - **Pairs over the Portal's own Bluetooth** with the Muse app. The Portal then shows up in the Muse
   app's device list.
-- **Keeps listening in the background,** starts when the Portal starts, and comes to the front when
-  it hears "Hey Muse".
+- **Keeps listening in the background,** starts when the Portal starts, brings itself to the front
+  and requests system-wide audio focus when it hears "Hey Muse" (muting/ducking background media),
+  and automatically returns to the background after 10 seconds of idle inactivity.
 - **Muse's character on the screen,** if you make it from your own copy of Meta's SDK. The character
   is Meta's and is not in this app.
 
@@ -66,7 +67,12 @@ adb install -r -g hey-muse.apk
 
 `-g` grants the microphone up front; without it the app asks on first launch.
 
-Hand over your SDK token with adb, which beats typing it on the Portal's keyboard:
+The easiest way to configure your SDK token and cloud voice settings is from your phone:
+1. Open **Settings** (gear icon at the top right) and tap **📱 Phone Setup** (or **Configure from Phone (Scan QR)**).
+2. Scan the displayed QR code with your phone camera.
+3. Paste your SDK token and speech key in the phone's browser form and tap **Save to Portal**.
+
+Alternatively, hand over your SDK token with adb, which also beats typing it on the Portal's keyboard:
 
 ```sh
 adb shell am start -n io.github.pgodlews.heymuse/.MainActivity --es sdk_token mgst_your_token_here

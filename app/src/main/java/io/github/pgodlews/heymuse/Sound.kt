@@ -2,11 +2,65 @@ package io.github.pgodlews.heymuse
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.util.Log
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
+
+/** Manages system-wide audio focus so Hey Muse mutes/ducks background music/videos while listening or speaking. */
+object AudioFocus {
+    private const val TAG = "HeyMuseFocus"
+    private var manager: AudioManager? = null
+    private var request: AudioFocusRequest? = null
+    private var hasFocus = false
+
+    fun init(context: Context) {
+        if (manager == null) {
+            manager = context.applicationContext.getSystemService(AudioManager::class.java)
+        }
+    }
+
+    @Synchronized
+    fun request(): Boolean {
+        val am = manager ?: return false
+        if (hasFocus) return true
+        val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_EXCLUSIVE)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .setAcceptsDelayedFocusGain(false)
+            .setOnAudioFocusChangeListener { change ->
+                Log.d(TAG, "Audio focus changed: $change")
+                if (change == AudioManager.AUDIOFOCUS_LOSS) {
+                    synchronized(this) { hasFocus = false }
+                }
+            }
+            .build()
+        request = req
+        val res = am.requestAudioFocus(req)
+        hasFocus = (res == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+        Log.i(TAG, "Requested audio focus (exclusive): granted=$hasFocus")
+        return hasFocus
+    }
+
+    @Synchronized
+    fun abandon() {
+        val am = manager ?: return
+        val req = request ?: return
+        if (hasFocus) {
+            am.abandonAudioFocusRequest(req)
+            hasFocus = false
+            request = null
+            Log.i(TAG, "Abandoned audio focus")
+        }
+    }
+}
 
 /** Audio out: the media stream, so the Portal's volume buttons and Muse's set_volume move it. */
 object Sound {
@@ -87,6 +141,7 @@ class Ringer(private val context: Context) {
     @Synchronized
     fun start() {
         if (running != null) return
+        AudioFocus.request()
         val pcm = context.resources.openRawResource(R.raw.ring).use { it.readBytes() }
         running = thread(name = "ring") {
             val track = Sound.stream(Sound.CLIP_RATE)
@@ -105,6 +160,7 @@ class Ringer(private val context: Context) {
             } finally {
                 track.release()
                 synchronized(this) { if (running === Thread.currentThread()) running = null }
+                AudioFocus.abandon()
                 onEnded?.invoke()
             }
         }
@@ -115,6 +171,7 @@ class Ringer(private val context: Context) {
     fun stop(): Boolean {
         val was = running != null
         running = null
+        AudioFocus.abandon()
         return was
     }
 
