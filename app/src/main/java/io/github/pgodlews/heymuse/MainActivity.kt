@@ -5,13 +5,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings as AndroidSettings
 import android.util.Log
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.collectAsState
@@ -34,15 +39,46 @@ class MainActivity : ComponentActivity() {
     private var showSettings by mutableStateOf(false)
     private var avatar by mutableStateOf<Avatar?>(null)
 
+    private var dismissRunnable: Runnable? = null
+    private val handler = Handler(Looper.getMainLooper())
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         volumeControlStream = AudioManager.STREAM_MUSIC
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
+        @Suppress("DEPRECATION")
+        window.addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
+        )
+
         MuseService.start(this)
         // The service starts the assistant on its own thread of events; the screen needs its settings now.
         Assistant.start(applicationContext)
         takeExtras(intent)
         askForMicrophone()
         avatar = Avatar.load(this)
+
+        lifecycleScope.launch {
+            var prevPhase = Phase.IDLE
+            Assistant.state.collect { s ->
+                if (s.ringing != null) {
+                    cancelAutoDismiss()
+                } else if (s.phase == Phase.IDLE) {
+                    if (prevPhase == Phase.SPEAKING || prevPhase == Phase.LISTENING) {
+                        scheduleAutoDismiss()
+                    }
+                } else {
+                    cancelAutoDismiss()
+                }
+                prevPhase = s.phase
+            }
+        }
 
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
@@ -55,7 +91,11 @@ class MainActivity : ComponentActivity() {
             )) {
                 val state by Assistant.state.collectAsState()
                 if (showSettings) {
-                    BackHandler { showSettings = false; avatar = Avatar.load(this) }
+                    BackHandler {
+                        showSettings = false
+                        avatar = Avatar.load(this)
+                        scheduleAutoDismiss()
+                    }
                     SettingsScreen(
                         state = state,
                         settings = Assistant.settings,
@@ -64,11 +104,23 @@ class MainActivity : ComponentActivity() {
                         canOverlay = AndroidSettings.canDrawOverlays(this),
                         onAllowOverlay = ::askForOverlay,
                         onKeepScreenOn = ::applyKeepScreenOn,
-                        onClose = { showSettings = false; avatar = Avatar.load(this) },
+                        onClose = {
+                            showSettings = false
+                            avatar = Avatar.load(this)
+                            scheduleAutoDismiss()
+                        },
                     )
                 } else {
-                    HomeScreen(state = state, avatar = avatar, captions = Assistant.settings.captions,
-                        wakeWord = Assistant.settings.wakeWord, onSettings = { showSettings = true })
+                    HomeScreen(
+                        state = state,
+                        avatar = avatar,
+                        captions = Assistant.settings.captions,
+                        wakeWord = Assistant.settings.wakeWord,
+                        onSettings = {
+                            cancelAutoDismiss()
+                            showSettings = true
+                        }
+                    )
                 }
             }
         }
@@ -77,6 +129,9 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         takeExtras(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setTurnScreenOn(true)
+        }
     }
 
     override fun onResume() {
@@ -86,8 +141,37 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        cancelAutoDismiss()
         Assistant.visible = false
         super.onPause()
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        cancelAutoDismiss()
+        if (!showSettings && Assistant.state.value.phase == Phase.IDLE && Assistant.state.value.ringing == null) {
+            scheduleAutoDismiss()
+        }
+    }
+
+    private fun scheduleAutoDismiss() {
+        cancelAutoDismiss()
+        if (showSettings) return
+        dismissRunnable = Runnable {
+            val current = Assistant.state.value
+            if (!showSettings && current.phase == Phase.IDLE && current.ringing == null) {
+                Log.i("HeyMuse", "Inactivity timeout (10s) reached; moving to background")
+                moveTaskToBack(true)
+            }
+        }
+        handler.postDelayed(dismissRunnable!!, AUTO_DISMISS_DELAY_MS)
+    }
+
+    private fun cancelAutoDismiss() {
+        dismissRunnable?.let {
+            handler.removeCallbacks(it)
+            dismissRunnable = null
+        }
     }
 
     private fun applyKeepScreenOn() {
@@ -122,6 +206,10 @@ class MainActivity : ComponentActivity() {
         runCatching {
             startActivity(Intent(AndroidSettings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
+    }
+
+    companion object {
+        const val AUTO_DISMISS_DELAY_MS = 10_000L
     }
 }
 

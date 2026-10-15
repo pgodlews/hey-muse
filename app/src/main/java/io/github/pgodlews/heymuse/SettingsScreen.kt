@@ -43,7 +43,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
+import io.github.pgodlews.heymuse.server.SetupServer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -69,6 +71,33 @@ fun SettingsScreen(
         Assistant.settingsChanged(micChanged = mic)
     }
 
+    val context = LocalContext.current
+    var showQrSetup by remember { mutableStateOf(false) }
+    var setupServer by remember { mutableStateOf<SetupServer?>(null) }
+
+    fun startQrSetup() {
+        val server = SetupServer(context, settings) {
+            changed(false)
+        }
+        if (server.start()) {
+            setupServer = server
+            showQrSetup = true
+        }
+    }
+
+    fun stopQrSetup() {
+        showQrSetup = false
+        setupServer?.stop()
+        setupServer = null
+    }
+
+    if (showQrSetup && setupServer != null) {
+        QrCodeDialog(
+            server = setupServer!!,
+            onDismiss = ::stopQrSetup
+        )
+    }
+
     Column(Modifier.fillMaxSize().background(Night)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onClose, modifier = Modifier.size(56.dp)) {
@@ -77,6 +106,13 @@ fun SettingsScreen(
             }
             Text("Settings", color = Ink, fontSize = 24.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.weight(1f))
+            Button(
+                onClick = ::startQrSetup,
+                colors = ButtonDefaults.buttonColors(containerColor = PanelHigh, contentColor = Accent),
+                modifier = Modifier.padding(end = 8.dp)
+            ) {
+                Text("📱 Phone Setup")
+            }
             StatusChip(state)
         }
         Column(
@@ -85,7 +121,7 @@ fun SettingsScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             key(version) {
-                MuseCard(state, settings, ::changed)
+                MuseCard(state, settings, ::changed, ::startQrSetup)
                 VoiceCard(settings, ::changed)
                 ListeningCard(settings, canOverlay, onAllowOverlay, ::changed)
                 ScreenCard(settings, avatarLoaded, avatarPath, onKeepScreenOn, ::changed)
@@ -146,7 +182,7 @@ private fun Field(label: String, value: String, secret: Boolean = false, placeho
 }
 
 @Composable
-private fun MuseCard(state: UiState, settings: Settings, changed: (Boolean) -> Unit) {
+private fun MuseCard(state: UiState, settings: Settings, changed: (Boolean) -> Unit, onOpenQrSetup: () -> Unit) {
     val s = state.status
     Section("Muse") {
         Text(
@@ -159,12 +195,20 @@ private fun MuseCard(state: UiState, settings: Settings, changed: (Boolean) -> U
             },
             color = Ink, fontSize = 17.sp,
         )
+        OutlinedButton(
+            onClick = onOpenQrSetup,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent),
+            border = BorderStroke(1.dp, Accent.copy(alpha = 0.5f))
+        ) {
+            Text("📱 Configure from Phone (Scan QR)", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+        }
         Field("Muse SDK token", settings.sdkToken, secret = true, placeholder = "mgst_…") {
             settings.sdkToken = it
             changed(false)
         }
         Note("Your own token from gadgets.muse.ai (Account → SDK tokens). It is personal: never share or publish it. " +
-            "Typing it here is slow; adb can hand it over instead (see the README).")
+            "Scan the QR code above to easily paste it from your phone, or hand it over via adb.")
 
         if (s.pairing) {
             PairingPanel(s)
